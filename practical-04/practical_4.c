@@ -1,148 +1,120 @@
-/*
-------------------------------------------------------------
-Practical No. 4
-Aim:
-To implement Predictive Parsing (LL(1)) in C.
-------------------------------------------------------------
-
-Grammar Used:
-E  → T E'
-E' → + T E' | ε
-T  → i
-
-Where:
-i  → identifier
-+  → operator
-$  → end of input symbol
-ε  → empty (epsilon)
-
-------------------------------------------------------------
-
-Concept:
-Predictive parsing is a top-down parsing technique.
-It uses:
-- A stack
-- An input buffer
-- Grammar rules
-- One lookahead symbol (LL(1))
-
-The parser predicts which production to apply
-without backtracking.
-
-------------------------------------------------------------
-
-Sample Input:
-i+i$
-
-Expected Output:
-String Accepted!
-
-------------------------------------------------------------
-*/
-
 #include <stdio.h>
+#include <conio.h>
 #include <string.h>
 
-/* Stack to store grammar symbols */
-char stack[50];
-int top = -1;
+/* Grammar */
+char prol[10][10] = {"E", "E'", "E'", "T", "T'", "T'", "F", "F"};
+char pror[10][10] = {"TE'", "+TE'", "@", "FT'", "*FT'", "@", "(E)", "%"};
+char prod[10][10] = {
+    "E->TE'",
+    "E'->+TE'",
+    "T->FT'",
+    "T->*F",
+    "F->(E)",
+    "F->%"};
 
-/* Push a symbol onto stack */
-void push(char c)
+/* FIRST and FOLLOW */
+char first[10][10] = {"(%", "+@", "(%", "*@", "(%"};
+char follow[10][10] = {"$)", "$)", "+$)", "+$)", "*+$)"};
+
+char table[5][6][10];
+
+/* Mapping symbols to table indices */
+int numr(char c)
 {
-    stack[++top] = c;
-}
-
-/* Pop a symbol from stack */
-char pop()
-{
-    return stack[top--];
-}
-
-int main()
-{
-    char input[50];
-    int i = 0; // Input pointer
-    char x;    // Top of stack symbol
-
-    /* Display grammar */
-    printf("Grammar:\n");
-    printf("E  -> T E'\n");
-    printf("E' -> + T E' | ε\n");
-    printf("T  -> i\n\n");
-
-    /* Read input string */
-    printf("Enter input string (end with $): ");
-    scanf("%s", input);
-
-    /* Initialize stack with end marker and start symbol */
-    push('$');
-    push('E');
-
-    printf("\nStack\tInput\tAction\n");
-
-    /* Parsing loop */
-    while (top >= 0)
+    switch (c)
     {
-        x = stack[top]; // Get top of stack
+    case 'E':
+        return 0;
+    case 'T':
+        return 1;
+    case 'F':
+        return 2;
 
-        printf("%s\t%s\t", stack, &input[i]);
+    case '+':
+        return 0;
+    case '*':
+        return 1;
+    case '(':
+        return 2;
+    case ')':
+        return 3;
+    case '%':
+        return 4;
+    case '$':
+        return 5;
+    }
+    return 2;
+}
 
-        /* If terminal matches input symbol */
-        if (x == input[i])
+void main()
+{
+    int i, j, k;
+
+    /* Initialize parsing table */
+    for (i = 0; i < 5; i++)
+        for (j = 0; j < 6; j++)
+            strcpy(table[i][j], " ");
+
+    printf("\nThe following is the predictive parsing table for the grammar:\n\n");
+
+    for (i = 0; i < 10; i++)
+        printf("%s\n", prod[i]);
+
+    printf("\nPredictive parsing table is:\n\n");
+
+    /* Fill table using FIRST */
+    for (i = 0; i < 10; i++)
+    {
+        k = strlen(first[i]);
+        for (j = 0; j < k; j++)
         {
-            pop();
-            i++;
-            printf("Match %c\n", x);
-        }
-
-        /* Apply production E → T E' */
-        else if (x == 'E')
-        {
-            pop();
-            push('E');
-            push('T');
-            printf("E -> T E'\n");
-        }
-
-        /* Apply production T → i */
-        else if (x == 'T' && input[i] == 'i')
-        {
-            pop();
-            push('i');
-            printf("T -> i\n");
-        }
-
-        /* Apply production E' → + T E' */
-        else if (x == 'E' && input[i] == '+')
-        {
-            pop();
-            push('E');
-            push('T');
-            push('+');
-            printf("E' -> + T E'\n");
-        }
-
-        /* Apply epsilon production E' → ε */
-        else if (x == 'E' && input[i] == '$')
-        {
-            pop();
-            printf("E' -> ε\n");
-        }
-
-        /* Error condition */
-        else
-        {
-            printf("Error\n");
-            return 0;
+            if (first[i][j] != '@')
+            {
+                strcpy(
+                    table[numr(prol[i][0]) + 1][numr(first[i][j]) + 1],
+                    prod[i]);
+            }
         }
     }
 
-    /* Final acceptance check */
-    if (input[i] == '$')
-        printf("\nString Accepted!\n");
-    else
-        printf("\nString Rejected!\n");
+    /* Fill table using FOLLOW for epsilon productions */
+    for (i = 0; i < 10; i++)
+    {
+        if (strlen(pror[i]) == 1 && pror[i][0] == '@')
+        {
+            k = strlen(follow[i]);
+            for (j = 0; j < k; j++)
+            {
+                strcpy(
+                    table[numr(prol[i][0]) + 1][numr(follow[i][j]) + 1],
+                    prod[i]);
+            }
+        }
+    }
 
-    return 0;
+    /* Table headers */
+    strcpy(table[0][0], " ");
+    strcpy(table[0][1], "+");
+    strcpy(table[0][2], "*");
+    strcpy(table[0][3], "(");
+    strcpy(table[0][4], ")");
+    strcpy(table[0][5], "$");
+
+    strcpy(table[1][0], "E");
+    strcpy(table[2][0], "T");
+    strcpy(table[3][0], "F");
+
+    /* Print table */
+    for (i = 0; i < 5; i++)
+    {
+        for (j = 0; j < 6; j++)
+        {
+            printf("%-10s", table[i][j]);
+            if (j == 5)
+                printf("\n--------------------------------------------------------\n");
+        }
+    }
+
+    getch();
 }
